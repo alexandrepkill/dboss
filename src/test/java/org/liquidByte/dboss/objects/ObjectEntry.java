@@ -1,38 +1,30 @@
 package org.liquidByte.dboss.objects;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.Date;
 
 public abstract class ObjectEntry {
 	private final String name;
 	private final String type;
-	private final Set<ObjectState> states;
-	private final boolean delta;
+	private final ObjectStateFactory facto;
+	private final SyncStrategy syncStrat;
 
-	protected ObjectEntry(String name, String type) {
-		this(name, type, false);
-	}
-	protected ObjectEntry(String name, String type, boolean delta) {
+	protected ObjectEntry(String name, String type, ObjectStateFactory facto, SyncStrategy syncStrat) {
 		if (name == null || name.isEmpty()) {
-			throw new IllegalArgumentException("name");
+			throw new IllegalArgumentException("name is null or empty");
 		}
 		if (type == null || type.isEmpty()) {
-			throw new IllegalArgumentException("type");
+			throw new IllegalArgumentException("type is null or empty");
+		}
+		if (facto == null) {
+			throw new IllegalArgumentException("factory is null");
+		}
+		if (syncStrat == null) {
+			throw new IllegalArgumentException("syncStrat is null");
 		}
 		this.name = name;
 		this.type = type;
-		this.states = new HashSet<ObjectState>();
-		this.delta = delta;
-	}
-	protected ObjectEntry(String name, String type, List<ObjectState> states) {
-		this(name, type, false, states);
-	}	
-	protected ObjectEntry(String name, String type, boolean delta, List<ObjectState> states) {
-		this(name, type, delta);
-		for(ObjectState state : states) {
-			this.states.add(state);
-		}
+		this.facto = facto;
+		this.syncStrat = syncStrat;
 	}
 	
 	public String getName() {
@@ -41,20 +33,18 @@ public abstract class ObjectEntry {
 	public String getType() {
 		return type;
 	}
-	public boolean isDelta() {
-		return delta;
-	}
-	public void absorb(ObjectState state) {
-		byte[] blob = state.getBlob();
-		ObjectState absorbedState = this.newState(state.getChecksum(), blob);
-		if (this.states.contains(absorbedState)) {
-			throw new IllegalStateException("state already known by object");
+	public void sync(int checksum, Date timestamp, byte[] blob) {
+		if (this.hasMatch(checksum, timestamp)) {
+			throw new IllegalStateException("blob in sync");
 		}
-		this.sync(blob);
+		this.syncStrat.sync(this, checksum, timestamp, blob);
 	}
-	
-	protected abstract ObjectState newState(int checksum, byte[] blob);
-	protected abstract void sync(byte[] blob);
+
+	public abstract boolean hasMatch(int checksum, Date timestamp);
+	public abstract ObjectState setState(int checksum, Date timestamp);
+	protected ObjectState createState(int checksum, Date timestamp) {
+		return this.facto.create(this, checksum, timestamp);
+	}
 	
 	@Override
 	public int hashCode() {

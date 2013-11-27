@@ -1,21 +1,33 @@
 package org.liquidByte.dboss.objects;
 
+import java.util.Date;
+
 public abstract class ObjectState {
 	private final ObjectEntry entry;
-	private int checksum;	
-	
+	private int checksum;
+	private Date timestamp;
+
 	protected ObjectState(ObjectEntry entry, int checksum) {
+		this(entry, checksum, new Date());
+	}
+	protected ObjectState(ObjectEntry entry, int checksum, Date timestamp) {
 		if (entry == null) {
 			throw new IllegalArgumentException("entry");
 		}
+		if (timestamp == null) {
+			throw new IllegalArgumentException("timestamp is null");
+		}
 		this.entry = entry;
 		this.checksum = checksum;
+		this.timestamp = timestamp;
 	}
 	
 	public int getChecksum() {
 		return checksum;
 	}
-	
+	public Date getTimestamp() {
+		return timestamp;
+	}
 	public abstract byte[] getBlob();
 
 	@Override
